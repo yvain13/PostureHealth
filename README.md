@@ -22,13 +22,14 @@ GitHub Actions (cron, every 2 h)  →  scripts/send.mjs  →  Web Push  →  iPh
 
 ## Reminder schedule (IST)
 
-| Time | Mon–Fri | Sat/Sun |
-|---|---|---|
-| 9 AM | Chin Tucks · Shoulder Drops, plus tonight's session name | Run + post-run circuit |
-| 11 AM, 3 PM, 5 PM | Chin Tucks · Shoulder Drops · 60-s Decompression | — |
-| 1 PM | Chest Opener · Chin Tucks · Shoulder Drops | Post-run check |
-| 7 PM | That evening's session (yoga or strength) | Evening stretch |
-| 9 PM | Wind-down, plus a reminder if you missed the session | — |
+Every day, notifications cover only the desk micro-breaks. Yoga, strength and runs are done in the morning, so they aren't notified; the app still shows that day's session for reference.
+
+| Time | Reminder |
+|---|---|
+| 9 AM | Morning set-up: Chin Tucks · Shoulder Drops |
+| 11 AM, 3 PM, 5 PM, 7 PM | Posture reset: Chin Tucks · Shoulder Drops · 60-s Decompression |
+| 1 PM | Lunch: Chest Opener · Chin Tucks · Shoulder Drops |
+| 9 PM | Wind-down: Shoulder Drops · 60-s Decompression |
 
 ## Two-week plan
 

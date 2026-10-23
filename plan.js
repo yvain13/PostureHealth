@@ -76,22 +76,13 @@ export const fmt = (items) => items.map((x) => `${EX[x.ex].name} (${x.dose})`).j
 const DESK = [i('chinTuck', '5 × 3 s'), i('shoulderDrop', '5')];
 
 // What to do at a given IST hour. Returns null when there is no reminder.
+// Only the daily desk micro-breaks are notified; yoga, strength and runs are done in the morning.
 export function reminderFor(info, hour) {
-  const { session, day } = info;
-  const weekend = day >= 5;
   let r = null;
-  if (!weekend) {
-    if (hour === 9) r = { title: 'Morning posture set-up', items: DESK, extra: `Tonight: ${session.title}` };
-    else if (hour === 11 || hour === 15) r = { title: 'Posture reset', items: [...DESK, i('decompress', '5 breaths')] };
-    else if (hour === 13) r = { title: 'Lunch chest opener', items: [i('chestOpener', '30 s × 2'), ...DESK] };
-    else if (hour === 17) r = { title: 'Posture reset', items: DESK, extra: `Tonight: ${session.title}` };
-    else if (hour === 19) r = { title: `${session.title} · ${session.mins} min`, items: session.items, extra: session.note };
-    else if (hour === 21) r = { title: 'Wind-down', items: [i('childWide', '1 min'), i('decompress', '5 breaths')], extra: `Missed ${session.title}? Even 5 min counts.` };
-  } else {
-    if (hour === 9) r = { title: `${session.title}`, items: session.items, extra: session.note };
-    else if (hour === 13) r = { title: 'Post-run check', items: session.items.filter((x) => x.ex !== 'run'), extra: 'Done after your run?' };
-    else if (hour === 19) r = { title: 'Evening stretch', items: [i('chestOpener', '30 s × 2'), i('childWide', '2 min')] };
-  }
+  if (hour === 9) r = { title: 'Morning posture set-up', items: DESK };
+  else if (hour === 13) r = { title: 'Lunch chest opener', items: [i('chestOpener', '30 s × 2'), ...DESK] };
+  else if (hour === 21) r = { title: 'Wind-down', items: [i('shoulderDrop', '5'), i('decompress', '5 breaths')] };
+  else if (SLOTS.includes(hour)) r = { title: 'Posture reset', items: [...DESK, i('decompress', '5 breaths')] };
   if (!r) return null;
   const body = [fmt(r.items), r.extra].filter(Boolean).join('\n');
   return { ...r, hour, body };
