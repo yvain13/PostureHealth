@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Posture Health</title>
+<meta name="theme-color" content="#0f1a1c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Posture">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  :root {
+    --bg: #0f1a1c; --card: #172629; --line: #24393d; --text: #e7f2f1; --muted: #8fa8a6;
+    --accent: #5eead4; --accent-ink: #062b26; --warn: #fbbf24;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 32px);
+    max-width: 560px; margin-inline: auto;
+  }
+  h1 { font-size: 28px; margin: 4px 0 2px; letter-spacing: -0.02em; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 28px 0 10px; font-weight: 600; }
+  .sub { color: var(--muted); margin: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+  .now { border-color: var(--accent); }
+  .now .label { color: var(--accent); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .now h3 { margin: 4px 0 12px; font-size: 21px; }
+  .ex { padding: 10px 0; border-top: 1px solid var(--line); }
+  .ex:first-of-type { border-top: 0; padding-top: 0; }
+  .ex b { display: block; }
+  .ex .dose { color: var(--accent); font-weight: 600; font-size: 14px; }
+  .ex p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+  .note { color: var(--warn); font-size: 14px; margin: 10px 0 0; }
+  .timeline { display: grid; gap: 8px; }
+  .slot { display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: start; padding: 12px 14px; }
+  .slot time { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 600; }
+  .slot.past { opacity: .5; }
+  .slot.cur { border-color: var(--accent); }
+  .slot .t { font-weight: 600; }
+  .slot .b { color: var(--muted); font-size: 14px; }
+  button {
+    font: inherit; font-weight: 600; border: 0; border-radius: 12px; padding: 12px 16px; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink); width: 100%; margin-top: 10px;
+  }
+  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+  textarea { width: 100%; min-height: 120px; margin-top: 10px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font: 12px ui-monospace, Menlo, monospace; }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; font-weight: 600; padding: 12px 0; }
+  .day { margin: 0 0 12px; }
+  .day b { color: var(--accent); }
+  .day span { color: var(--muted); font-size: 14px; display: block; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tabs button { margin: 0; }
+  .tabs button:not(.on) { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  .status { font-size: 14px; color: var(--muted); margin: 8px 0 0; }
+  ol { padding-left: 20px; color: var(--muted); font-size: 14px; }
+  ol li { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+  <p class="sub" id="date"></p>
+  <h1 id="today"></h1>
+  <p class="sub" id="session"></p>
+
+  <h2 id="nowLabel">Right now</h2>
+  <div class="card now" id="now"></div>
+
+  <h2>Today's reminders (IST)</h2>
+  <div class="timeline" id="timeline"></div>
+
+  <h2>Two-week plan</h2>
+  <div class="card">
+    <div class="tabs"><button data-w="0">Week 1</button><button data-w="1">Week 2</button></div>
+    <div id="plan"></div>
+  </div>
+
+  <h2>Notifications</h2>
+  <div class="card" id="setup">
+    <p class="status" id="status"></p>
+    <button id="enable">Enable notifications</button>
+    <button class="ghost" id="test">Send a test notification</button>
+    <div id="subBox" hidden>
+      <p class="status">Copy this and save it as the <b>PUSH_SUBSCRIPTION</b> secret in your GitHub repo (Settings → Secrets and variables → Actions).</p>
+      <textarea id="sub" readonly></textarea>
+      <button class="ghost" id="copy">Copy</button>
+    </div>
+  </div>
+
+<script type="module">
+import { EX, PLAN, DAY_NAMES, istNow, dayInfo, reminderFor, scheduleFor } from './plan.js';
+import { VAPID_PUBLIC_KEY } from './config.js';
+
+const $ = (id) => document.getElementById(id);
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const hh = (h) => `${((h + 11) % 12) + 1} ${h < 12 ? 'AM' : 'PM'}`;
+
+const params = new URLSearchParams(location.search);
+const ist = istNow();
+const curHour = ist.getUTCHours();
+// Opened from a notification: show that day/slot.
+const info = params.get('d') ? dayInfo(new Date(params.get('d') + 'T12:00:00Z')) : dayInfo(ist);
+const isToday = info.iso === ist.toISOString().slice(0, 10);
+const slots = scheduleFor(info);
+
+$('date').textContent = new Date(info.iso + 'T12:00:00Z').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', timeZone: 'UTC' }) + ` · Week ${info.week + 1}`;
+$('today').textContent = DAY_NAMES[info.day];
+$('session').textContent = `${info.session.title} · ${info.session.mins} min`;
+
+function exList(items) {
+  return items.map((x) => `<div class="ex"><b>${esc(EX[x.ex].name)}</b><span class="dose">${esc(x.dose)}</span><p>${esc(EX[x.ex].how)}</p></div>`).join('');
+}
+
+// Which reminder to show in "Right now"
+let focus = params.get('h') ? reminderFor(info, Number(params.get('h'))) : null;
+if (!focus && isToday) focus = [...slots].reverse().find((r) => r.hour <= curHour) || slots[0];
+if (!focus) focus = slots[0];
+if (focus && params.get('h')) $('nowLabel').textContent = `${hh(focus.hour)} reminder`;
+else if (isToday && curHour < slots[0]?.hour) $('nowLabel').textContent = 'First up';
+
+$('now').innerHTML = focus
+  ? `<div class="label">${hh(focus.hour)}</div><h3>${esc(focus.title)}</h3>${exList(focus.items)}${focus.extra ? `<p class="note">${esc(focus.extra)}</p>` : ''}`
+  : '<p class="sub">Nothing scheduled.</p>';
+
+$('timeline').innerHTML = slots.map((r) => {
+  const cls = r === focus ? 'cur' : (isToday && r.hour < curHour ? 'past' : '');
+  return `<a href="?d=${info.iso}&h=${r.hour}" style="color:inherit;text-decoration:none"><div class="card slot ${cls}"><time>${hh(r.hour)}</time><div><div class="t">${esc(r.title)}</div><div class="b">${esc(r.body).replace(/\n/g, '<br>')}</div></div></div></a>`;
+}).join('');
+
+function showWeek(w) {
+  document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', Number(b.dataset.w) === w));
+  $('plan').innerHTML = PLAN[w].map((s, d) => `
+    <details ${w === info.week && d === info.day ? 'open' : ''}>
+      <summary>${DAY_NAMES[d]} — ${esc(s.title)} <span style="color:var(--muted);font-weight:400">· ${s.mins} min</span></summary>
+      ${s.note ? `<p class="note" style="margin-top:0">${esc(s.note)}</p>` : ''}
+      ${exList(s.items)}
+    </details>`).join('');
+}
+document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showWeek(Number(b.dataset.w))));
+showWeek(info.week);
+
+// --- Notifications ---
+const standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+let reg;
+
+function setStatus(t) { $('status').innerHTML = t; }
+
+function b64ToBytes(s) {
+  const b = atob((s + '='.repeat((4 - (s.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(b, (c) => c.charCodeAt(0));
+}
+
+async function showSub(sub) {
+  $('sub').value = JSON.stringify(sub);
+  $('subBox').hidden = false;
+}
+
+async function init() {
+  if ('serviceWorker' in navigator) reg = await navigator.serviceWorker.register('./sw.js');
+  if (!standalone && /iPhone|iPad/.test(navigator.userAgent)) {
+    setStatus('On iPhone, first tap <b>Share → Add to Home Screen</b>, then open the app from your home screen and come back here.');
+    $('enable').disabled = $('test').disabled = true;
+    return;
+  }
+  if (!supported) { setStatus('This browser does not support web push.'); return; }
+  await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  if (sub && Notification.permission === 'granted') {
+    setStatus('✅ Notifications are on. Reminders arrive every 2 hours, 9 AM–9 PM IST.');
+    $('enable').textContent = 'Show my subscription';
+    showSub(sub);
+  } else {
+    setStatus('Turn on notifications to get reminders every 2 hours, 9 AM–9 PM IST.');
+  }
+}
+
+$('enable').addEventListener('click', async () => {
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { setStatus('Permission was not granted. Enable it in iPhone Settings → Notifications → Posture.'); return; }
+    const sub = (await reg.pushManager.getSubscription()) ||
+      (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(VAPID_PUBLIC_KEY) }));
+    setStatus('✅ Subscribed. One last step: save the text below as a GitHub secret.');
+    showSub(sub);
+  } catch (e) {
+    setStatus('Could not subscribe: ' + esc(e.message));
+  }
+});
+
+$('test').addEventListener('click', async () => {
+  if (Notification.permission !== 'granted') await Notification.requestPermission();
+  const r = focus || slots[0];
+  await reg.showNotification(r.title, { body: r.body, icon: './icon-180.png', tag: 'test', data: { url: `./?d=${info.iso}&h=${r.hour}` } });
+});
+
+$('copy').addEventListener('click', async () => {
+  await navigator.clipboard.writeText($('sub').value);
+  $('copy').textContent = 'Copied ✓';
+});
+
+init();
+</script>
+</body>
+</html>
