@@ -1,4 +1,4 @@
-const CACHE = 'posture-v1';
+const CACHE = 'posture-v2';
 const SHELL = ['./', './index.html', './plan.js', './config.js', './manifest.webmanifest', './icon-180.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -14,10 +14,11 @@ self.addEventListener('activate', (e) => {
 });
 
 // Network first, so updates pushed to GitHub show up; cache when offline.
+// no-cache revalidates with the server instead of reusing the browser's HTTP cache.
 self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET') return;
+  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request.url, { cache: 'no-cache' })
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(e.request, copy));
