@@ -9,7 +9,7 @@ It follows a 2-week plan for desk workers: micro-breaks during work, evening yog
 iOS can't schedule notifications from a web app on its own, so a free **GitHub Actions** cron job acts as the push server:
 
 ```
-GitHub Actions (cron, every 2 h)  →  scripts/send.mjs  →  Web Push  →  iPhone notification
+GitHub Actions (cron, every 15 min)  →  scripts/send.mjs  →  Web Push  →  iPhone notification
                                                                        ↓ tap
                                                           index.html?d=<date>&h=<hour>
 ```
@@ -83,7 +83,7 @@ FORCE_SLOT=19 node scripts/send.mjs
 
 ## Things to know
 
-- GitHub's scheduled jobs often start **5–20 minutes late**.
+- GitHub's scheduled jobs are often late and sometimes skipped. The workflow therefore runs every 15 minutes, and each run sends the slot that is due unless it has already been sent (tracked with an Actions cache key such as `sent-2026-10-26-11`). A reminder can arrive up to about 15–30 minutes after its time.
 - GitHub turns off scheduled workflows after **60 days without a commit** to the repo. Make a small commit now and then, or re-enable it under Actions.
 - If you reinstall the app or clear its data, the subscription changes. Repeat step 5. A failed run in the Actions log usually means the subscription has expired.
 

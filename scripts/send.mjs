@@ -1,15 +1,28 @@
 // Run by GitHub Actions on a schedule: works out the current IST slot and pushes it.
+// With --check it only reports which slot is due (as a cache key in $GITHUB_OUTPUT), so the
+// workflow can skip slots that were already sent.
+import { appendFileSync } from 'node:fs';
 import { SLOTS, istNow, dayInfo, reminderFor } from '../plan.js';
 
 const ist = istNow();
 const info = dayInfo(ist);
 const forced = process.env.FORCE_SLOT ? Number(process.env.FORCE_SLOT) : null;
-// Cron runs can start late, so use the latest slot that has already begun.
-const hour = forced ?? SLOTS.filter((h) => h <= ist.getUTCHours()).pop();
+// The cron runs every 15 min and can start late, so use the latest slot that has begun,
+// as long as we are still within 2 hours of it.
+const nowHour = ist.getUTCHours();
+const latest = SLOTS.filter((h) => h <= nowHour).pop();
+const hour = forced ?? (latest != null && nowHour < latest + 2 ? latest : null);
 
 const r = hour != null && reminderFor(info, hour);
 if (!r) {
-  console.log(`No reminder for ${info.iso} at ${ist.getUTCHours()}:xx IST`);
+  console.log(`No reminder due for ${info.iso} at ${nowHour}:xx IST`);
+  process.exit(0);
+}
+
+if (process.argv.includes('--check')) {
+  const key = `sent-${info.iso}-${hour}`;
+  console.log(`Due: ${key}`);
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `key=${key}\n`);
   process.exit(0);
 }
 
